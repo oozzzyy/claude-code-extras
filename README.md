@@ -2,7 +2,7 @@
 
 Small add-ons for Claude Code. Each one works on its own, so take only what you like.
 
-<!-- Add screenshots here: docs/ -->
+![Status line with 5-hour and weekly limits](docs/statusline.svg)
 
 | Add-on | What it does |
 |---|---|

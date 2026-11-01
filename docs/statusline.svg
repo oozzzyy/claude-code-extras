@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 90" width="800" height="90" role="img" aria-label="Status line showing 24 percent of the 5-hour limit and 7 percent of the weekly limit">
+<rect width="800" height="90" rx="8" fill="#101010"/>
+<text x="24" y="52" font-family="Consolas, 'DejaVu Sans Mono', monospace" font-size="18" fill="#4FC3F7" xml:space="preserve">5h ━━<tspan fill="#1F5F7A">────────</tspan> 24% until 15:33   week <tspan fill="#1F5F7A">──────────</tspan> 7%</text>
+</svg>
