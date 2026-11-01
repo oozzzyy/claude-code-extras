@@ -1,0 +1,12 @@
+{
+  "name": "limits-band-local",
+  "owner": {
+    "name": "oozzzyy"
+  },
+  "plugins": [
+    {
+      "name": "limits-band",
+      "source": "./"
+    }
+  ]
+}

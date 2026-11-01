@@ -1,0 +1,5 @@
+* text=auto
+*.wav binary
+*.png binary
+*.gif binary
+*.reg -text

@@ -1,0 +1,10 @@
+{
+  "name": "Claude Sky",
+  "base": "dark",
+  "overrides": {
+    "userMessageBackground": "#16305F",
+    "userMessageBackgroundHover": "#1E3C73",
+    "bashMessageBackgroundColor": "#16305F",
+    "memoryBackgroundColor": "#16305F"
+  }
+}

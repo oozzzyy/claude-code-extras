@@ -1,0 +1,6 @@
+*.exe
+*.bak
+*.log
+.claude-plugin/types/
+node_modules/
+Thumbs.db

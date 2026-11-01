@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "powershell.exe", "args": ["-NoProfile", "-NonInteractive", "-Command", "(New-Object Media.SoundPlayer ($env:USERPROFILE + '\\.claude\\sounds\\coin-quiet.wav')).PlaySync()"], "timeout": 15, "async": true } ] }
+    ],
+    "Notification": [
+      { "hooks": [ { "type": "command", "command": "powershell.exe", "args": ["-NoProfile", "-NonInteractive", "-Command", "(New-Object Media.SoundPlayer ($env:USERPROFILE + '\\.claude\\sounds\\notify-quiet.wav')).PlaySync()"], "timeout": 15, "async": true } ] }
+    ]
+  }
+}

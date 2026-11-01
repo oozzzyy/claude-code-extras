@@ -1,0 +1,12 @@
+{
+  "name": "mode-on-change-local",
+  "owner": {
+    "name": "oozzzyy"
+  },
+  "plugins": [
+    {
+      "name": "mode-on-change",
+      "source": "./"
+    }
+  ]
+}
