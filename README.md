@@ -21,7 +21,7 @@ Small add-ons for Claude Code. Each one works on its own, so take only what you 
 
 Setup never replaces your status line or theme without asking, and it keeps your other settings. The original settings file is saved once as `settings.json.before-extras`.
 
-Restart open Claude Code sessions afterwards. To remove the add-ons, run `install.cmd -Uninstall`. The sound files stay.
+Restart open Claude Code sessions afterwards. To remove the add-ons, run `install.cmd -Uninstall`. It only removes what setup added, and brings back a status line or theme you agreed to replace. The sound files stay.
 
 Prefer to set things up by hand? Each section below explains how.
 
@@ -40,17 +40,11 @@ Copy `statusline/statusline.ps1` somewhere and add this to `~/.claude/settings.j
 
 ## Mods
 
-Register a mod's folder and enable it in `~/.claude/settings.json`:
+Copy the mod's folder somewhere it can stay, then add and install it:
 
-```json
-{
-  "extraKnownMarketplaces": {
-    "mode-on-change-local": {
-      "source": { "source": "directory", "path": "C:\\path\\to\\mods\\mode-on-change" }
-    }
-  },
-  "enabledPlugins": { "mode-on-change@mode-on-change-local": true }
-}
+```powershell
+claude plugin marketplace add C:\path\to\mods\mode-on-change
+claude plugin install mode-on-change@mode-on-change-local
 ```
 
 For the limits band, use `limits-band` and `limits-band-local` the same way. It repeats the status line, so you only need one of the two.

@@ -9,11 +9,15 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
+# The Claude Code CLI has to work on the same settings as this script.
+$env:CLAUDE_CONFIG_DIR = $ClaudeHome
+
 $settingsPath = Join-Path $ClaudeHome 'settings.json'
 $soundsDir = Join-Path $ClaudeHome 'sounds'
 $skillDir = Join-Path $ClaudeHome 'skills\gemini'
 $themeFile = Join-Path $ClaudeHome 'themes\claude-sky.json'
 $themeName = 'custom:claude-sky'
+$statePath = Join-Path $InstallDir 'installed.json'
 $statusScript = Join-Path $InstallDir 'statusline\statusline.ps1'
 $statusCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$statusScript`""
 $mods = @{ 'limits-band' = 'limits-band-local'; 'mode-on-change' = 'mode-on-change-local' }
@@ -38,14 +42,33 @@ function Read-Settings {
     catch { throw "$settingsPath is not valid JSON, so it was left unchanged. Fix it and run setup again." }
 }
 
-function Write-Settings($settings) {
-    # Windows PowerShell wraps some arrays in extra objects unless this type data is removed.
-    Remove-TypeData System.Array -ErrorAction SilentlyContinue
+function Save-Backup {
     New-Item -ItemType Directory -Force -Path $ClaudeHome | Out-Null
     $backup = "$settingsPath.before-extras"
     if ((Test-Path -LiteralPath $settingsPath) -and -not (Test-Path -LiteralPath $backup)) {
         Copy-Item -LiteralPath $settingsPath -Destination $backup
     }
+}
+
+# What setup itself added, so that removing it never takes away anything the person already had.
+function Read-State {
+    $state = [pscustomobject]@{ skill = $false; themeFile = $false; themeSetting = $false; previousTheme = $null; previousStatusLine = $null }
+    if (Test-Path -LiteralPath $statePath) {
+        $saved = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($statePath))
+        foreach ($prop in $saved.PSObject.Properties) { Set-Value $state $prop.Name $prop.Value }
+    }
+    return $state
+}
+
+function Write-State($state) {
+    New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
+    [IO.File]::WriteAllText($statePath, (ConvertTo-Json -InputObject $state -Depth 100), (New-Object Text.UTF8Encoding($false)))
+}
+
+function Write-Settings($settings) {
+    # Windows PowerShell wraps some arrays in extra objects unless this type data is removed.
+    Remove-TypeData System.Array -ErrorAction SilentlyContinue
+    Save-Backup
     $json = ConvertTo-Json -InputObject $settings -Depth 100
     [IO.File]::WriteAllText($settingsPath, $json, (New-Object Text.UTF8Encoding($false)))
 }
@@ -114,28 +137,45 @@ function Remove-SoundHooks($settings) {
     Remove-EmptySection $settings 'hooks'
 }
 
-function Same-File($a, $b) {
-    (Test-Path -LiteralPath $a) -and (Test-Path -LiteralPath $b) -and
-        ((Get-FileHash -LiteralPath $a).Hash -eq (Get-FileHash -LiteralPath $b).Hash)
+function Find-Claude {
+    $native = Join-Path $HOME '.local\bin\claude.exe'
+    if (Test-Path -LiteralPath $native) { return $native }
+    $found = Get-Command claude.exe, claude.cmd -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($found) { return $found.Source }
+    return $null
 }
 
-function Install-Mod($settings, $name) {
+function Invoke-Claude($claude, [string[]]$arguments) {
+    & $claude @arguments | Out-Null
+    return $LASTEXITCODE -eq 0
+}
+
+# Fails quietly: on a first install, or after a manual removal, there is nothing to remove.
+function Remove-Mod($claude, $name) {
+    $marketplace = $mods[$name]
+    $previousPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
+    & $claude plugin uninstall "$name@$marketplace" 2>$null | Out-Null
+    & $claude plugin marketplace remove $marketplace 2>$null | Out-Null
+    $ErrorActionPreference = $previousPreference
+}
+
+# Listing a mod in settings.json does not install it, so this goes through the Claude Code CLI.
+# The CLI edits settings.json itself, so this runs while no copy of the settings is held in memory.
+function Install-Mod($claude, $name) {
     $target = Join-Path $InstallDir "mods\$name"
+    Remove-Mod $claude $name
     if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
     New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "mods\$name") -Destination $target -Recurse
-    $marketplace = $mods[$name]
-    Set-Value (Get-Section $settings 'extraKnownMarketplaces') $marketplace ([pscustomobject]@{
-        source = [pscustomobject]@{ source = 'directory'; path = $target }
-    })
-    Set-Value (Get-Section $settings 'enabledPlugins') "$name@$marketplace" $true
+    if (-not (Invoke-Claude $claude @('plugin', 'marketplace', 'add', $target))) { throw "Could not add the mod folder: $target" }
+    if (-not (Invoke-Claude $claude @('plugin', 'install', "$name@$($mods[$name])"))) { throw "Could not install the mod: $name" }
     Step "Mod: $name"
 }
 
 function Install-Extras {
     Write-Host 'Claude Code Extras setup'
-    $claude = (Test-Path -LiteralPath (Join-Path $HOME '.local\bin\claude.exe')) -or
-        [bool](Get-Command claude.exe, claude.cmd -CommandType Application -ErrorAction SilentlyContinue)
+    $claude = Find-Claude
     if (-not $claude) { throw 'Claude Code was not found. Install it first, then run setup again.' }
 
     if ($interactive) {
@@ -150,11 +190,20 @@ function Install-Extras {
     Write-Host ''
     if ($chosen.Count -eq 0) { Write-Host 'Nothing selected, so nothing was changed.'; return }
 
+    Read-Settings | Out-Null # Stops here if the file is broken, before anything changes.
+    Save-Backup
+    $state = Read-State
+
+    foreach ($name in 'limits-band', 'mode-on-change') {
+        if ($chosen -contains $name) { Install-Mod $claude $name }
+    }
+
     $settings = Read-Settings
 
     if ($chosen -contains 'statusline') {
         $current = if ($settings.PSObject.Properties['statusLine']) { $settings.statusLine.command } else { $null }
         if (-not $current -or $current -eq $statusCommand -or (May-Replace 'status line' $current)) {
+            if ($current -and $current -ne $statusCommand) { $state.previousStatusLine = $settings.statusLine }
             New-Item -ItemType Directory -Force -Path (Split-Path $statusScript) | Out-Null
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'statusline\statusline.ps1') -Destination $statusScript -Force
             Set-Value $settings 'statusLine' ([pscustomobject]@{ type = 'command'; command = $statusCommand })
@@ -162,18 +211,15 @@ function Install-Extras {
         }
     }
 
-    foreach ($name in 'limits-band', 'mode-on-change') {
-        if ($chosen -contains $name) { Install-Mod $settings $name }
-    }
-
     if ($chosen -contains 'gemini') {
         $target = Join-Path $skillDir 'SKILL.md'
         $source = Join-Path $PSScriptRoot 'skills\gemini\SKILL.md'
-        if ((Test-Path -LiteralPath $target) -and -not (Same-File $target $source)) {
+        if ((Test-Path -LiteralPath $target) -and -not $state.skill) {
             Step "Gemini skill: kept your existing $target"
         } else {
             New-Item -ItemType Directory -Force -Path $skillDir | Out-Null
             Copy-Item -LiteralPath $source -Destination $target -Force
+            $state.skill = $true
             Step 'Gemini skill: installed'
         }
         if (-not (Get-Command gemini -ErrorAction SilentlyContinue)) {
@@ -182,10 +228,19 @@ function Install-Extras {
     }
 
     if ($chosen -contains 'theme') {
-        New-Item -ItemType Directory -Force -Path (Split-Path $themeFile) | Out-Null
-        Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'themes\claude-sky.json') -Destination $themeFile -Force
+        if ((Test-Path -LiteralPath $themeFile) -and -not $state.themeFile) {
+            Step "Theme: kept your existing $themeFile"
+        } else {
+            New-Item -ItemType Directory -Force -Path (Split-Path $themeFile) | Out-Null
+            Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'themes\claude-sky.json') -Destination $themeFile -Force
+            $state.themeFile = $true
+        }
         $current = if ($settings.PSObject.Properties['theme']) { $settings.theme } else { $null }
-        if (-not $current -or $current -eq $themeName -or (May-Replace 'theme' $current)) {
+        if ($current -eq $themeName) {
+            Step 'Theme: Claude Sky'
+        } elseif (-not $current -or (May-Replace 'theme' $current)) {
+            $state.previousTheme = $current
+            $state.themeSetting = $true
             Set-Value $settings 'theme' $themeName
             Step 'Theme: Claude Sky'
         }
@@ -203,19 +258,27 @@ function Install-Extras {
     }
 
     Write-Settings $settings
+    Write-State $state
     Write-Host ''
     Write-Host 'Done. Restart any open Claude Code sessions to see the changes.'
 }
 
 function Uninstall-Extras {
     Write-Host 'Removing Claude Code Extras...'
+    $state = Read-State
     if (Test-Path -LiteralPath $settingsPath) {
+        Read-Settings | Out-Null # Stops here if the file is broken, before anything changes.
+        Save-Backup
+        $claude = Find-Claude
+        if ($claude) { foreach ($name in $mods.Keys) { Remove-Mod $claude $name } }
         $settings = Read-Settings
         if ($settings.PSObject.Properties['statusLine'] -and $settings.statusLine.command -eq $statusCommand) {
-            $settings.PSObject.Properties.Remove('statusLine')
+            if ($state.previousStatusLine) { Set-Value $settings 'statusLine' $state.previousStatusLine }
+            else { $settings.PSObject.Properties.Remove('statusLine') }
         }
-        if ($settings.PSObject.Properties['theme'] -and $settings.theme -eq $themeName) {
-            $settings.PSObject.Properties.Remove('theme')
+        if ($state.themeSetting -and $settings.PSObject.Properties['theme'] -and $settings.theme -eq $themeName) {
+            if ($state.previousTheme) { Set-Value $settings 'theme' $state.previousTheme }
+            else { $settings.PSObject.Properties.Remove('theme') }
         }
         foreach ($name in $mods.Keys) {
             $marketplace = $mods[$name]
@@ -233,9 +296,8 @@ function Uninstall-Extras {
         Remove-SoundHooks $settings
         Write-Settings $settings
     }
-    $skill = Join-Path $skillDir 'SKILL.md'
-    if (Same-File $skill (Join-Path $PSScriptRoot 'skills\gemini\SKILL.md')) { Remove-Item -LiteralPath $skillDir -Recurse -Force }
-    if (Same-File $themeFile (Join-Path $PSScriptRoot 'themes\claude-sky.json')) { Remove-Item -LiteralPath $themeFile -Force }
+    if ($state.skill -and (Test-Path -LiteralPath $skillDir)) { Remove-Item -LiteralPath $skillDir -Recurse -Force }
+    if ($state.themeFile -and (Test-Path -LiteralPath $themeFile)) { Remove-Item -LiteralPath $themeFile -Force }
     if (Test-Path -LiteralPath $InstallDir) { Remove-Item -LiteralPath $InstallDir -Recurse -Force }
     Write-Host "Done. The sound files stay in $soundsDir."
 }

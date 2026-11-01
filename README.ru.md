@@ -21,7 +21,7 @@
 
 Установщик не заменит твою строку состояния или тему, не спросив, и не трогает остальные настройки. Исходный файл настроек один раз сохраняется как `settings.json.before-extras`.
 
-После установки перезапусти открытые сессии Claude Code. Чтобы убрать дополнения, запусти `install.cmd -Uninstall`. Файлы звуков останутся.
+После установки перезапусти открытые сессии Claude Code. Чтобы убрать дополнения, запусти `install.cmd -Uninstall`. Удалится только то, что добавил установщик, а строка состояния или тема, которые ты разрешил заменить, вернутся. Файлы звуков останутся.
 
 Если хочешь настроить всё вручную, инструкции есть в разделах ниже.
 
@@ -40,17 +40,11 @@
 
 ## Моды
 
-Подключи папку мода и включи его в `~/.claude/settings.json`:
+Скопируй папку мода туда, где она сможет остаться, затем подключи и установи его:
 
-```json
-{
-  "extraKnownMarketplaces": {
-    "mode-on-change-local": {
-      "source": { "source": "directory", "path": "C:\\path\\to\\mods\\mode-on-change" }
-    }
-  },
-  "enabledPlugins": { "mode-on-change@mode-on-change-local": true }
-}
+```powershell
+claude plugin marketplace add C:\path\to\mods\mode-on-change
+claude plugin install mode-on-change@mode-on-change-local
 ```
 
 Для лимитов над строкой ввода укажи так же `limits-band` и `limits-band-local`. Этот мод повторяет строку лимитов, поэтому достаточно одного из двух.
