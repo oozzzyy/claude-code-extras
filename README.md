@@ -4,6 +4,8 @@ Small add-ons for Claude Code. Each one works on its own, so take only what you 
 
 **[Download ClaudeCodeExtras-Setup.zip](https://github.com/oozzzyy/claude-code-extras/releases/latest/download/ClaudeCodeExtras-Setup.zip)**, unpack it and double-click `install.cmd`. It asks which add-ons you want and sets them up.
 
+[Русская версия](README.ru.md)
+
 ![Status line with 5-hour and weekly limits](docs/statusline.svg)
 
 | Add-on | What it does |
