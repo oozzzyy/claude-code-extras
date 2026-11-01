@@ -3,3 +3,4 @@
 *.png binary
 *.gif binary
 *.reg -text
+*.cmd text eol=crlf

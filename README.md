@@ -2,6 +2,8 @@
 
 Small add-ons for Claude Code. Each one works on its own, so take only what you like.
 
+**[Download ClaudeCodeExtras-Setup.zip](https://github.com/oozzzyy/claude-code-extras/releases/latest/download/ClaudeCodeExtras-Setup.zip)**, unpack it and double-click `install.cmd`. It asks which add-ons you want and sets them up.
+
 ![Status line with 5-hour and weekly limits](docs/statusline.svg)
 
 | Add-on | What it does |
@@ -12,6 +14,14 @@ Small add-ons for Claude Code. Each one works on its own, so take only what you 
 | [Gemini skill](#gemini-skill) | Hands bulky reading to the Gemini CLI to save Claude tokens |
 | [Claude Sky theme](#claude-sky-theme) | Navy backgrounds for your messages |
 | [Sounds](#sounds) | A quiet coin when a response finishes and a soft signal when Claude needs you |
+
+## Install
+
+Setup never replaces your status line or theme without asking, and it keeps your other settings. The original settings file is saved once as `settings.json.before-extras`.
+
+Restart open Claude Code sessions afterwards. To remove the add-ons, run `install.cmd -Uninstall`. The sound files stay.
+
+Prefer to set things up by hand? Each section below explains how.
 
 ## Status line
 
